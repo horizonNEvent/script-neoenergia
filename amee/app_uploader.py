@@ -570,7 +570,9 @@ if processar:
 # ==================== MODAL DE PENDÊNCIAS ====================
 if st.session_state.get("modal_aberto"):
     st.divider()
-    st.subheader(f"📋 Pendências - {st.session_state.get('transmissora_modal')} ({st.session_state.get('competencia_modal')})")
+    transmissoras_selecionadas = st.session_state.get('transmissoras_modal', [])
+    trans_str = ", ".join(transmissoras_selecionadas) if transmissoras_selecionadas else "N/A"
+    st.subheader(f"📋 Pendências - {trans_str} ({st.session_state.get('competencia_modal')})")
 
     pendencias = st.session_state.get("pendencias_modal", [])
 
@@ -578,22 +580,24 @@ if st.session_state.get("modal_aberto"):
         # Tabela com informações
         st.write(f"**Total: {len(pendencias)} pendência(s)**")
 
-        cols = st.columns([2, 1.5, 1.5, 1.5, 2])
-        cols[0].write("**Empresa/Agente**")
-        cols[1].write("**Filial**")
-        cols[2].write("**Valor (R$)**")
-        cols[3].write("**NF**")
-        cols[4].write("**Situação**")
+        cols = st.columns([1.5, 2, 1.5, 1.5, 1.5, 2])
+        cols[0].write("**Transmissora**")
+        cols[1].write("**Empresa/Agente**")
+        cols[2].write("**Filial**")
+        cols[3].write("**Valor (R$)**")
+        cols[4].write("**NF**")
+        cols[5].write("**Situação**")
 
         st.divider()
 
         for pend in pendencias:
-            cols = st.columns([2, 1.5, 1.5, 1.5, 2])
-            cols[0].write(pend.get("empresa", "-"))
-            cols[1].write(pend.get("agente", "-"))
-            cols[2].write(f"{pend.get('valor', 0):,.2f}")
-            cols[3].write(pend.get("notafiscal", "-"))
-            cols[4].write(pend.get("situacao", "-"))
+            cols = st.columns([1.5, 2, 1.5, 1.5, 1.5, 2])
+            cols[0].write(pend.get("transmissora_busca", "-"))
+            cols[1].write(pend.get("empresa", "-"))
+            cols[2].write(pend.get("agente", "-"))
+            cols[3].write(f"{pend.get('valor', 0):,.2f}")
+            cols[4].write(pend.get("notafiscal", "-"))
+            cols[5].write(pend.get("situacao", "-"))
 
         # Botão para fechar
         if st.button("❌ Fechar", use_container_width=True):
