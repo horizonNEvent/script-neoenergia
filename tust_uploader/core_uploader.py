@@ -10,9 +10,13 @@ class TUSTClient:
     def __init__(self, username, password, base_url="https://tust-americaenergia.rsmbrasil.com.br"):
         """
         Cliente para TUST.
-        base_url pode ser:
+        base_url é dinâmico e deve receber a URL do ambiente selecionado no app.
+        Ambientes atualmente suportados:
         - https://tust-americaenergia.rsmbrasil.com.br (AMERICAENERGIA)
         - https://tust.rsmbrasil.com.br (RIOENERGY)
+        - https://tust-diamanteenergia.rsmbrasil.com.br (DIAMANTEENERGIA)
+        - https://tust-atlasenergy.pollvo.com/ (ATLASENERGY)
+        - https://tust-aetecapital.pollvo.com/ (AETECAPITAL)
         """
         self.session = requests.Session()
         self.base_url = base_url
@@ -122,6 +126,61 @@ class TUSTClient:
                 return True, "Upload concluído"
         except Exception as e:
             return False, f"Erro: {e}"
+
+    def get_fatura_detalhe(self, id_fatura):
+        """Busca detalhes completos de uma fatura."""
+        url = f"{self.base_url}/api/conciliacaopagamentos/fatura/{id_fatura}"
+        try:
+            res = self.session.get(url)
+            res.raise_for_status()
+            return True, res.json()
+        except Exception as e:
+            return False, {"erro": str(e)}
+
+    def _post_boolean(self, path, payload):
+        """POST JSON que retorna boolean (true/false)."""
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": f"{self.base_url}/Processo/ConciliacaoPagamentos/",
+            "User-Agent": "Mozilla/5.0",
+            "Origin": self.base_url,
+            "Content-Type": "application/json",
+        }
+        url = f"{self.base_url}{path}"
+        try:
+            res = self.session.post(url, headers=headers, json=payload)
+            res.raise_for_status()
+            try:
+                data = res.json()
+                if isinstance(data, bool):
+                    return data, f"POST {path} -> {data}"
+                return False, f"POST {path} retorno não booleano"
+            except Exception:
+                return False, f"POST {path} resposta inválida"
+        except Exception as e:
+            return False, f"POST {path} erro: {e}"
+
+    def excluir_nota_fiscal(self, id_fatura, id_nota):
+        """
+        Cancela/inativa nota fiscal conforme contrato oficial:
+        POST /api/conciliacaopagamentos/cancelarnotafiscal
+        """
+        payload = {
+            "idfaturatransmissaonotafiscal": id_nota,
+            "idfaturatransmissao": id_fatura,
+        }
+        return self._post_boolean("/api/conciliacaopagamentos/cancelarnotafiscal", payload)
+
+    def excluir_boleto(self, id_fatura, id_boleto):
+        """
+        Cancela/inativa boleto conforme contrato oficial:
+        POST /api/conciliacaopagamentos/cancelarboleto
+        """
+        payload = {
+            "idfaturatransmissaoboleto": id_boleto,
+            "idfaturatransmissao": id_fatura,
+        }
+        return self._post_boolean("/api/conciliacaopagamentos/cancelarboleto", payload)
 
 
 def format_for_search(text):
@@ -453,3 +512,138 @@ def processar_transmissora(username, password, transmissora_info, folder_path, c
             })
 
     return {"status": "sucesso", "mensagem": f"{len(pendencias)} processadas", "detalhes": resultados}
+
+
+def _to_float_safe(value):
+    try:
+        return float(value)
+    except Exception:
+        return 0.0
+
+
+def _is_same_money(a, b, tol=0.01):
+    return abs(_to_float_safe(a) - _to_float_safe(b)) <= tol
+
+
+def _pick_to_remove_by_value(items, target_value):
+    """
+    Mantém somente 1 item com valor exato ao target (quando existir),
+    marcando o restante para remoção.
+    """
+    if not items:
+        return []
+
+    exact = [item for item in items if _is_same_money(item.get("vltotal", item.get("vlboleto", item.get("valor", 0))), target_value)]
+    if not exact:
+        # Sem match exato, não remove automaticamente para evitar risco.
+        return []
+
+    keep = exact[0]
+    to_remove = []
+    for item in items:
+        if item is keep:
+            continue
+        to_remove.append(item)
+    return to_remove
+
+
+def sanear_pendencias_por_valor(username, password, pendencias, base_url="https://tust-americaenergia.rsmbrasil.com.br", modo_teste=False):
+    """
+    Para cada pendência, busca a fatura e tenta remover notas/boletos divergentes
+    para manter apenas o que bate com o valor ONS.
+    """
+    client = TUSTClient(username, password, base_url=base_url)
+    ok, msg = client.login()
+    if not ok:
+        return {"status": "erro", "mensagem": f"Falha no login: {msg}", "detalhes": []}
+
+    detalhes = []
+    for pend in pendencias:
+        id_fatura = pend.get("id")
+        if not id_fatura:
+            detalhes.append({
+                "id_fatura": "-",
+                "empresa": pend.get("empresa", "-"),
+                "status": "erro",
+                "mensagem": "Pendência sem id de fatura",
+            })
+            continue
+
+        ok_detail, fatura = client.get_fatura_detalhe(id_fatura)
+        if not ok_detail:
+            detalhes.append({
+                "id_fatura": id_fatura,
+                "empresa": pend.get("empresa", "-"),
+                "status": "erro",
+                "mensagem": f"Erro ao buscar fatura: {fatura.get('erro')}",
+            })
+            continue
+
+        tpintegracaoerp = str(fatura.get("tpintegracaoerp", ""))
+        if tpintegracaoerp.lower() == "enviado":
+            detalhes.append({
+                "id_fatura": id_fatura,
+                "empresa": pend.get("empresa", "-"),
+                "valor_ons": _to_float_safe(fatura.get("vlons", pend.get("valor", 0))),
+                "status": "bloqueado",
+                "mensagem": "Bloqueado: integração ERP = Enviado",
+            })
+            continue
+
+        valor_ons = _to_float_safe(fatura.get("vlons", pend.get("valor", 0)))
+        notas = fatura.get("notasfiscais", []) or []
+        boletos = fatura.get("boletos", []) or []
+
+        notas_remover = _pick_to_remove_by_value(notas, valor_ons)
+        boletos_remover = _pick_to_remove_by_value(boletos, valor_ons)
+
+        removidos_nf = 0
+        removidos_boleto = 0
+        falhas = []
+
+        for nota in notas_remover:
+            id_nota = nota.get("idfaturatransmissaonotafiscal")
+            if not id_nota:
+                continue
+            if modo_teste:
+                removidos_nf += 1
+                continue
+            ok_del, info = client.excluir_nota_fiscal(id_fatura, id_nota)
+            if ok_del:
+                removidos_nf += 1
+            else:
+                falhas.append(f"NF {id_nota}: {info}")
+
+        for boleto in boletos_remover:
+            id_boleto = boleto.get("idfaturatransmissaoboleto")
+            if not id_boleto:
+                continue
+            if modo_teste:
+                removidos_boleto += 1
+                continue
+            ok_del, info = client.excluir_boleto(id_fatura, id_boleto)
+            if ok_del:
+                removidos_boleto += 1
+            else:
+                falhas.append(f"Boleto {id_boleto}: {info}")
+
+        if falhas:
+            status = "parcial"
+            mensagem = f"NF removidas: {removidos_nf}, boletos removidos: {removidos_boleto}, falhas: {' | '.join(falhas[:3])}"
+        else:
+            status = "sucesso"
+            mensagem = f"NF removidas: {removidos_nf}, boletos removidos: {removidos_boleto}"
+
+        detalhes.append({
+            "id_fatura": id_fatura,
+            "empresa": pend.get("empresa", "-"),
+            "valor_ons": valor_ons,
+            "status": status,
+            "mensagem": mensagem,
+        })
+
+    return {
+        "status": "sucesso",
+        "mensagem": "Saneamento concluído",
+        "detalhes": detalhes,
+    }

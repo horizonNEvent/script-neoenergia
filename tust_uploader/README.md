@@ -21,18 +21,15 @@ Só execute o app, não precisa reinstalar.
 O app agora é **100% inteligente** - não precisa de estrutura rígida!
 
 ```
-amee/
-├── transmissoras.json          ← Dados das transmissoras (não mudar)
-├── app_uploader.py             ← Interface (não mudar)
-├── core_uploader.py            ← Lógica do backend (não mudar)
-├── README.md                   ← Este arquivo
-├── boletos_fev/                ← Qualquer pasta com PDFs
-│   ├── doc1.pdf
-│   ├── invoice_cemar.pdf
-│   └── ...
-└── documentos_importantes/     ← O nome NÃO importa!
-    ├── boleto_2026.pdf
-    └── ...
+tust_uploader/
+├── config/
+│   └── transmissoras.json      ← Dados das transmissoras
+├── app_uploader.py             ← Interface Streamlit
+├── core_uploader.py            ← Lógica do backend
+├── scripts/
+│   └── amee_smart_uploader.py  ← Script legado
+├── artifacts/                  ← HARs e capturas
+└── README.md                   ← Este arquivo
 ```
 
 **O nome da pasta pode ser QUALQUER UM!** O app lê os PDFs e extrai as informações automaticamente.
@@ -150,7 +147,7 @@ Formato: `YYYY-MM-DDTHH:MM:SS.000Z`
 ### "Pasta não encontrada"
 - ✅ Copie o caminho completo da pasta
 - ✅ Verifique se digitou certo
-- ✅ Exemplo correto: `D:\Workspace\projetos-da-rsm\script-neoenergia\amee\boletos`
+- ✅ Exemplo correto: `D:\Workspace\projetos-da-rsm\script-neoenergia\boletos`
 
 ### "Nenhum PDF encontrado"
 - ✅ Verificar se a pasta existe

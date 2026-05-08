@@ -226,7 +226,8 @@ def main(termo_busca):
     client.login()
 
     # Carregar mapeamento
-    json_path = Path(r"d:\Workspace\script-neoenergia\amee\transmissoras.json")
+    project_root = Path(__file__).resolve().parents[2]
+    json_path = project_root / "tust_uploader" / "config" / "transmissoras.json"
     if not json_path.exists():
         print("❌ Arquivo transmissoras.json não encontrado.")
         return
@@ -285,7 +286,7 @@ def main(termo_busca):
     print(f"⚠️ Encontradas {len(pendencias)} faturas aguardando boleto.")
 
     # Listar PDFs locais
-    folder_path = Path(fr"d:\Workspace\script-neoenergia\amee\{trans_info['Slug']}")
+    folder_path = project_root / "boletos" / trans_info["Slug"]
     if not folder_path.exists():
         print(f"❌ Pasta {folder_path} não existe.")
         return

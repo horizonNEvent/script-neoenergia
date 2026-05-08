@@ -94,3 +94,9 @@ yarn-error.log*
 # Build frontend
 .next/
 out/
+
+# Boletos
+/boletos
+
+# Pasta legada/local (fora do escopo do projeto)
+/amee/

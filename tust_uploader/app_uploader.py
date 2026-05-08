@@ -2,7 +2,7 @@ import streamlit as st
 from pathlib import Path
 import json
 from datetime import datetime
-from core_uploader import processar_transmissora, analisar_pasta_boletos, buscar_pendencias_competencia_especifica, obter_id_tust_automatico
+from core_uploader import processar_transmissora, analisar_pasta_boletos, buscar_pendencias_competencia_especifica, obter_id_tust_automatico, sanear_pendencias_por_valor
 
 # Configuração da página
 st.set_page_config(
@@ -24,8 +24,8 @@ st.title("📤 TUST Smart Uploader")
 st.markdown("Interface para upload automático de boletos - **100% Inteligente**")
 
 # ==================== CARREGAR CONFIGURAÇÕES ====================
-base_folder = Path(r"d:\Workspace\projetos-da-rsm\script-neoenergia\amee")
-json_path = base_folder / "transmissoras.json"
+base_folder = Path(__file__).resolve().parent
+json_path = base_folder / "config" / "transmissoras.json"
 
 try:
     with open(json_path, "r", encoding="utf-8") as f:
@@ -99,6 +99,16 @@ ambientes_tust = {
     },
     "DIAMANTEENERGIA": {
         "url": "https://tust-diamanteenergia.rsmbrasil.com.br",
+        "usuario": "",
+        "senha": ""
+    },
+    "ATLASENERGY": {
+        "url": "https://tust-atlasenergy.pollvo.com/",
+        "usuario": "",
+        "senha": ""
+    },
+    "AETECAPITAL": {
+        "url": "https://tust-aetecapital.pollvo.com/",
         "usuario": "",
         "senha": ""
     }
@@ -382,7 +392,7 @@ with tab1:
     st.caption("Indique o caminho da pasta:")
     pasta_selecionada = st.text_input(
         "Caminho da pasta com PDFs:",
-        value=str(base_folder / "sobral"),
+        value=str(base_folder.parent / "boletos"),
         label_visibility="collapsed",
         help="Cole o caminho completo da pasta que contém os PDFs dos boletos"
     )
@@ -579,6 +589,33 @@ if st.session_state.get("modal_aberto"):
     if pendencias:
         # Tabela com informações
         st.write(f"**Total: {len(pendencias)} pendência(s)**")
+
+        col_sanear_1, col_sanear_2 = st.columns([2, 1])
+        with col_sanear_1:
+            st.caption("Saneia automaticamente NFs/boletos excedentes quando houver item com valor exato da ONS.")
+        with col_sanear_2:
+            sanear = st.button("🧹 Sanear", use_container_width=True, type="secondary")
+
+        if sanear:
+            with st.spinner("Executando saneamento automático..."):
+                resultado_saneamento = sanear_pendencias_por_valor(
+                    username=username,
+                    password=password,
+                    pendencias=pendencias,
+                    base_url=ambiente_config["url"],
+                    modo_teste=modo_teste,
+                )
+
+            if resultado_saneamento["status"] == "erro":
+                st.error(f"❌ {resultado_saneamento['mensagem']}")
+            else:
+                st.success("✅ Saneamento executado")
+                for item in resultado_saneamento.get("detalhes", []):
+                    emoji = "✅" if item["status"] == "sucesso" else ("⛔" if item["status"] == "bloqueado" else "⚠️")
+                    st.caption(
+                        f"{emoji} Fatura {item['id_fatura']} | {item['empresa']} | "
+                        f"ONS {item.get('valor_ons', 0):,.2f} | {item['mensagem']}"
+                    )
 
         cols = st.columns([1.5, 2, 1.5, 1.5, 1.5, 2])
         cols[0].write("**Transmissora**")
