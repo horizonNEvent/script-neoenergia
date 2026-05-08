@@ -4,6 +4,10 @@
 
 O TUST Smart Uploader automatiza o processo de identificação e envio de boletos para faturas pendentes no sistema TUST, com suporte a múltiplos ambientes.
 
+## Link principal de acesso
+
+https://script-neoenergia-grpvnhsewddoyakaeddwxe.streamlit.app/
+
 ---
 
 ## 2. Ambientes Suportados
