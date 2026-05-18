@@ -411,7 +411,8 @@ def buscar_pendencias_competencia_especifica(username, password, transmissora_in
 
     # Tenta primeiro usar ID_TUST do JSON, depois fallback
     FALLBACK_IDS = {
-        "1007": 7, "1234": 233, "1237": 236, "1247": 246, "1159": 158, "1185": 184
+        "1007": 7, "1090": 89, "1147": 146, "1159": 158, "1185": 184,
+        "1234": 233, "1237": 236, "1247": 246,
     }
 
     # Prioridade 1: ID_TUST no JSON
@@ -462,7 +463,8 @@ def processar_transmissora(username, password, transmissora_info, folder_path, c
 
     # Buscar ID TUST
     FALLBACK_IDS = {
-        "1007": 7, "1234": 233, "1237": 236, "1247": 246, "1159": 158, "1185": 184
+        "1007": 7, "1090": 89, "1147": 146, "1159": 158, "1185": 184,
+        "1234": 233, "1237": 236, "1247": 246,
     }
 
     # Prioridade 1: ID_TUST no JSON

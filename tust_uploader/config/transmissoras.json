@@ -7,17 +7,20 @@
   {
     "Codigo_ONS": 1090,
     "Transmissora": "NARANDIBA",
-    "CNPJ": "10.337.920/0001-53"
+    "CNPJ": "10.337.920/0001-53",
+    "ID_TUST": 89
   },
   {
     "Codigo_ONS": 1147,
     "Transmissora": "NARANDIBA (SE BRUMADO II)",
-    "CNPJ": "10.337.920/0001-53"
+    "CNPJ": "10.337.920/0001-53",
+    "ID_TUST": 146
   },
   {
     "Codigo_ONS": 1159,
     "Transmissora": "NARANDIBA (SE EXTREMOZ II)",
-    "CNPJ": "10.337.920/0001-53"
+    "CNPJ": "10.337.920/0001-53",
+    "ID_TUST": 158
   },
   {
     "Codigo_ONS": 1185,

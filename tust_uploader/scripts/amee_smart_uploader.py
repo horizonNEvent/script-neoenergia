@@ -250,11 +250,13 @@ def main(termo_busca):
     # IDs conhecidos do HAR para agilizar e garantir precisão
     FALLBACK_IDS = {
         "1007": 7,    # AFLUENTE
+        "1090": 89,   # NARANDIBA
+        "1147": 146,  # NARANDIBA (SE BRUMADO II)
+        "1159": 158,  # NARANDIBA (SE EXTREMOZ II)
+        "1185": 184,  # POTIGUAR
         "1234": 233,  # SOBRAL
         "1237": 236,  # ATIBAIA
         "1247": 246,  # BIGUACU
-        "1159": 158,  # NARANDIBA (Pelo HAR: NARANDIBA (SE EXTREMOZ II))
-        "1185": 184,  # POTIGUAR
     }
     
     ons_code = str(trans_info["Codigo_ONS"])
