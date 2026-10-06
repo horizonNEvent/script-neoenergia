@@ -1,102 +1,46 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# C extensions
-*.so
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Virtual environment
-venv/
-.env/
-.venv/
-env/
-ENV/
+# testing
+/coverage
 
-# Environment variables
-.env
-.env.*
+# next.js
+/.next/
+/out/
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
+# production
+/build
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-pytest_cache/
-
-# Type checkers
-.mypy_cache/
-.pyre/
-.pytype/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Logs
-*.log
-
-# VS Code
-.vscode/
-
-# PyCharm / IntelliJ
-.idea/
-
-# MacOS
+# misc
 .DS_Store
+*.pem
 
-# Windows
-Thumbs.db
-
-# SQLite
-*.sqlite3
-
-# Temporary files
-*.swp
-*.swo
-*~
-
-# Coverage
-coverage.xml
-
-# Docker
-*.pid
-*.seed
-
-# Node (caso tenha frontend junto)
-node_modules/
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# Build frontend
-.next/
-out/
+# env files (can opt-in for committing if needed)
+.env*
 
-# Boletos
-/boletos
+# vercel
+.vercel
 
-# Pasta legada/local (fora do escopo do projeto)
-/amee/
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# python
+__pycache__/
+*.py[cod]
+
