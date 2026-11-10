@@ -108,6 +108,7 @@ export const UploadTab: React.FC<UploadTabProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processProgress, setProcessProgress] = useState({ current: 0, total: 0 });
   const [matches, setMatches] = useState<MatchItem[]>([]);
+  const [selectedMatchIds, setSelectedMatchIds] = useState<string[]>([]);
   const [parseProgress, setParseProgress] = useState({ current: 0, total: 0, filename: '' });
   const [searchProgress, setSearchProgress] = useState({ current: 0, total: 0, transmissora: '' });
   const [currentUploadItem, setCurrentUploadItem] = useState<string>('');
@@ -159,11 +160,13 @@ export const UploadTab: React.FC<UploadTabProps> = ({
     setBoletos((prev) => prev.filter((_, i) => i !== index));
     // Se remover um arquivo, limpa matches para re-analisar
     setMatches([]);
+    setSelectedMatchIds([]);
   };
 
   const clearAllBoletos = () => {
     setBoletos([]);
     setMatches([]);
+    setSelectedMatchIds([]);
   };
 
   // Buscar pendências e fazer match
@@ -218,6 +221,7 @@ export const UploadTab: React.FC<UploadTabProps> = ({
       if (todasPendencias.length === 0) {
         alert('Nenhuma pendência encontrada para as transmissoras selecionadas nesta competência.');
         setMatches([]);
+        setSelectedMatchIds([]);
       } else {
         const matchResults = matchAllPendencias(todasPendencias, boletos);
         for (const b of boletos) {
@@ -229,6 +233,8 @@ export const UploadTab: React.FC<UploadTabProps> = ({
           );
         }
         setMatches(matchResults);
+        // Inicialmente todas as pendências vêm marcadas para upload
+        setSelectedMatchIds(matchResults.map((m) => m.id));
       }
     } catch (err) {
       console.error('Erro ao buscar pendências:', err);
@@ -238,18 +244,49 @@ export const UploadTab: React.FC<UploadTabProps> = ({
     }
   };
 
-  // Processar uploads em lote
+  // Controle de checkboxes de seleção de upload (por item e por empresa)
+  const toggleMatchSelection = (id: string) => {
+    setSelectedMatchIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleEmpresaSelection = (empresa: string) => {
+    const idsDaEmpresa = matches
+      .filter((m) => (m.pendencia.empresa || 'Sem Empresa') === empresa)
+      .map((m) => m.id);
+    const todasMarcadas = idsDaEmpresa.every((id) => selectedMatchIds.includes(id));
+
+    if (todasMarcadas) {
+      setSelectedMatchIds((prev) => prev.filter((id) => !idsDaEmpresa.includes(id)));
+    } else {
+      setSelectedMatchIds((prev) => Array.from(new Set([...prev, ...idsDaEmpresa])));
+    }
+  };
+
+  const toggleAllMatchesSelection = () => {
+    const allIds = matches.map((m) => m.id);
+    if (selectedMatchIds.length === allIds.length) {
+      setSelectedMatchIds([]);
+    } else {
+      setSelectedMatchIds(allIds);
+    }
+  };
+
+  // Processar uploads em lote (apenas dos itens marcados)
   const handleProcessarUploads = async () => {
     if (!cookies) {
       onRequireAuth();
       return;
     }
 
-    const readyItems = matches.filter((m) => m.boleto && m.status !== 'sucesso');
+    const readyItems = matches.filter(
+      (m) => m.boleto && m.status !== 'sucesso' && selectedMatchIds.includes(m.id)
+    );
     if (readyItems.length === 0) {
       alert(
         totalComBoleto > 0
-          ? 'Todos os boletos localizados já foram enviados com sucesso nesta sessão. Veja "Logs de Auditoria" ou rode "Buscar Pendências" de novo.'
+          ? 'Nenhuma empresa/fatura com boleto está marcada para envio (ou todas as marcadas já foram enviadas).'
           : 'Nenhum item com boleto encontrado pronto para upload.'
       );
       return;
@@ -261,7 +298,7 @@ export const UploadTab: React.FC<UploadTabProps> = ({
     let processedCount = 0;
 
     for (const match of matches) {
-      if (!match.boleto || match.status === 'sucesso') continue;
+      if (!match.boleto || match.status === 'sucesso' || !selectedMatchIds.includes(match.id)) continue;
 
       setCurrentUploadItem(match.pendencia.transmissora || match.pendencia.empresa || match.boleto.arquivo);
 
@@ -368,8 +405,15 @@ export const UploadTab: React.FC<UploadTabProps> = ({
   });
 
   const totalComBoleto = matches.filter((m) => !!m.boleto).length;
+  const totalMarcadosParaUpload = matches.filter(
+    (m) => !!m.boleto && m.status !== 'sucesso' && selectedMatchIds.includes(m.id)
+  ).length;
   const totalSucesso = matches.filter((m) => m.status === 'sucesso').length;
   const totalFalha = matches.filter((m) => m.status === 'erro').length;
+
+  const empresasEncontradas = Array.from(
+    new Set(matches.map((m) => m.pendencia.empresa || 'Sem Empresa'))
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -757,7 +801,10 @@ export const UploadTab: React.FC<UploadTabProps> = ({
             <div>
               <h3 style={{ fontSize: '1.2rem' }}>Resultado da Correspondência</h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                {matches.length} fatura(s) pendente(s) • {totalComBoleto} com boleto localizado
+                {matches.length} fatura(s) pendente(s) • {totalComBoleto} com boleto localizado •{' '}
+                <strong style={{ color: 'var(--accent-emerald)' }}>
+                  {totalMarcadosParaUpload} marcada(s) para upload
+                </strong>
               </p>
             </div>
 
@@ -777,7 +824,7 @@ export const UploadTab: React.FC<UploadTabProps> = ({
                 type="button"
                 className="btn btn-emerald"
                 onClick={handleProcessarUploads}
-                disabled={isProcessing || totalComBoleto === 0}
+                disabled={isProcessing || totalMarcadosParaUpload === 0}
               >
                 {isProcessing ? (
                   <>
@@ -787,10 +834,124 @@ export const UploadTab: React.FC<UploadTabProps> = ({
                 ) : (
                   <>
                     <Play size={16} />
-                    <span>Processar Uploads ({totalComBoleto})</span>
+                    <span>Processar Uploads ({totalMarcadosParaUpload})</span>
                   </>
                 )}
               </button>
+            </div>
+          </div>
+
+          {/* SELEÇÃO DE EMPRESAS PARA UPLOAD (CHECKBOXES) */}
+          <div
+            style={{
+              marginBottom: '1.25rem',
+              padding: '1rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '0.75rem',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                  Empresas para Upload ({selectedMatchIds.length}/{matches.length} faturas marcadas)
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Marque ou desmarque as empresas que devem ter o upload realizado
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={toggleAllMatchesSelection}
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.7rem' }}
+              >
+                {selectedMatchIds.length === matches.length
+                  ? 'Desmarcar Todas'
+                  : 'Marcar Todas'}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {empresasEncontradas.map((empresa) => {
+                const itensEmpresa = matches.filter(
+                  (m) => (m.pendencia.empresa || 'Sem Empresa') === empresa
+                );
+                const marcadosCount = itensEmpresa.filter((m) =>
+                  selectedMatchIds.includes(m.id)
+                ).length;
+                const isAllChecked = marcadosCount === itensEmpresa.length && itensEmpresa.length > 0;
+                const isPartial = marcadosCount > 0 && marcadosCount < itensEmpresa.length;
+
+                return (
+                  <label
+                    key={empresa}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleEmpresaSelection(empresa);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: 500,
+                      userSelect: 'none',
+                      background: isAllChecked
+                        ? 'rgba(132, 56, 84, 0.2)'
+                        : isPartial
+                        ? 'rgba(132, 56, 84, 0.1)'
+                        : 'rgba(255, 255, 255, 0.03)',
+                      border: `1px solid ${
+                        isAllChecked || isPartial
+                          ? 'var(--brand-magenta)'
+                          : 'var(--border-subtle)'
+                      }`,
+                      color: isAllChecked || isPartial ? 'var(--text-main)' : 'var(--text-muted)',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isAllChecked}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isPartial;
+                      }}
+                      onChange={() => {}}
+                      style={{
+                        accentColor: 'var(--brand-magenta)',
+                        width: '14px',
+                        height: '14px',
+                        cursor: 'pointer',
+                      }}
+                    />
+                    <span>{empresa}</span>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        opacity: 0.75,
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        padding: '0.05rem 0.4rem',
+                        borderRadius: 'var(--radius-full)',
+                      }}
+                    >
+                      {marcadosCount}/{itensEmpresa.length}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -862,6 +1023,37 @@ export const UploadTab: React.FC<UploadTabProps> = ({
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredMatches.length > 0 &&
+                        filteredMatches.every((m) => selectedMatchIds.includes(m.id))
+                      }
+                      onChange={() => {
+                        const filteredIds = filteredMatches.map((m) => m.id);
+                        const allFilteredSelected = filteredIds.every((id) =>
+                          selectedMatchIds.includes(id)
+                        );
+                        if (allFilteredSelected) {
+                          setSelectedMatchIds((prev) =>
+                            prev.filter((id) => !filteredIds.includes(id))
+                          );
+                        } else {
+                          setSelectedMatchIds((prev) =>
+                            Array.from(new Set([...prev, ...filteredIds]))
+                          );
+                        }
+                      }}
+                      title="Marcar/Desmarcar visíveis"
+                      style={{
+                        accentColor: 'var(--brand-magenta)',
+                        width: '15px',
+                        height: '15px',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  </th>
                   <th>Transmissora</th>
                   <th>Empresa / Agente</th>
                   <th>Valor (R$)</th>
@@ -878,9 +1070,30 @@ export const UploadTab: React.FC<UploadTabProps> = ({
                     style: 'currency',
                     currency: 'BRL',
                   });
+                  const isChecked = selectedMatchIds.includes(m.id);
 
                   return (
-                    <tr key={m.id}>
+                    <tr
+                      key={m.id}
+                      style={{
+                        opacity: isChecked ? 1 : 0.55,
+                        transition: 'opacity var(--transition-fast)',
+                      }}
+                    >
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={isProcessing}
+                          onChange={() => toggleMatchSelection(m.id)}
+                          style={{
+                            accentColor: 'var(--brand-magenta)',
+                            width: '15px',
+                            height: '15px',
+                            cursor: isProcessing ? 'not-allowed' : 'pointer',
+                          }}
+                        />
+                      </td>
                       <td>
                         <strong style={{ color: 'var(--accent-cyan)' }}>
                           {m.pendencia.transmissora_busca || m.pendencia.transmissora}
